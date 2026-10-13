@@ -3,9 +3,9 @@ const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, nativeI
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { execFile } = require('child_process');
 const Store = require('electron-store');
-const { transcribeFile } = require('./stt/whisper-local');
+const { toWav16k } = require('./audio');
+const { transcribeFile, ensureEngine } = require('./stt/engine');
 const { polish } = require('./polish');
 const { injectText } = require('./inject');
 
@@ -15,6 +15,7 @@ let pill = null;
 let tray = null;
 let recording = false;
 let audioChunks = [];
+let engineReady = false;
 
 function createPill() {
   pill = new BrowserWindow({
@@ -40,6 +41,12 @@ function setPillState(state, text = '') {
 
 async function toggleDictation() {
   if (!pill || pill.isDestroyed()) return;
+  if (!engineReady) {
+    pill.showInactive();
+    setPillState('error', 'Speech engine still loading…');
+    setTimeout(() => { if (pill && !pill.isDestroyed()) pill.hide(); }, 1500);
+    return;
+  }
   if (recording) await stopDictation();
   else startDictation();
 }
@@ -91,22 +98,28 @@ ipcMain.handle('recording-flushed', async () => {
   }
 });
 
-function toWav16k(inputPath) {
-  const out = inputPath.replace(/\.webm$/, '.wav');
-  return new Promise((resolve, reject) => {
-    execFile('ffmpeg',
-      ['-y', '-i', inputPath, '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', out],
-      (err, _stdout, stderr) => err
-        ? reject(new Error('ffmpeg: ' + String(stderr).slice(-200)))
-        : resolve(out));
-  });
-}
-
 function registerHotkey() {
   globalShortcut.unregisterAll();
   const hotkey = store.get('hotkey');
   const ok = globalShortcut.register(hotkey, toggleDictation);
   console.log(`[main] hotkey "${hotkey}": ${ok ? 'registered' : 'FAILED'}`);
+}
+
+// First launch: download the speech model (~150MB) with pill progress.
+async function bootEngine() {
+  pill.showInactive();
+  setPillState('processing', 'First run: downloading speech model…');
+  try {
+    await ensureEngine((fraction) => {
+      setPillState('processing', `Downloading model… ${Math.round(fraction * 100)}%`);
+    });
+    engineReady = true;
+    console.log('[main] speech engine ready');
+    pill.hide();
+  } catch (err) {
+    console.error('[main] engine failed:', err.message);
+    setPillState('error', 'Model download failed — check internet');
+  }
 }
 
 app.whenReady().then(() => {
@@ -123,6 +136,7 @@ app.whenReady().then(() => {
   ]));
   registerHotkey();
   console.log('[main] ready');
+  bootEngine(); // async — pill shows download progress
 });
 
 app.on('window-all-closed', (e) => e.preventDefault());
