@@ -1,0 +1,1 @@
+{"dependencies":{"electron-store":"^8.2.0"},"description":"Local-first voice dictation for macOS — working prototype","devDependencies":{"electron":"^33.4.0"},"main":"src/main.js","name":"flowtate","scripts":{"setup-stt":"bash scripts/setup-stt.sh","start":"electron ."},"version":"0.1.0"}
