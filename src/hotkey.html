@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Change hotkey</title>
+<style>
+  html, body {
+    margin: 0; height: 100%; background: #0B1220; color: #fff;
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h2 { margin: 0 0 6px; font-size: 17px; font-weight: 600; }
+  p { margin: 0 0 14px; font-size: 13px; color: #9AA4B2; text-align: center; padding: 0 24px; }
+  #combo {
+    min-width: 220px; padding: 12px 18px; border-radius: 10px;
+    background: #16202f; border: 1px solid #2a3a52;
+    font-size: 16px; font-weight: 600; text-align: center; color: #F5B942;
+  }
+  #status { margin-top: 12px; font-size: 13px; min-height: 18px; color: #9AA4B2; }
+  #status.err { color: #ff7a7a; }
+  #status.ok { color: #7dffa8; }
+  .hint { margin-top: 8px; font-size: 11px; color: #5b6b82; }
+</style>
+</head>
+<body>
+  <h2>Press your new hotkey</h2>
+  <p>Hold the keys together — e.g. Cmd + Shift + K.<br>Needs at least one modifier key.</p>
+  <div id="combo">…</div>
+  <div id="status"></div>
+  <div class="hint">Esc to cancel</div>
+<script>
+  const comboEl = document.getElementById('combo');
+  const statusEl = document.getElementById('status');
+  let busy = false;
+
+  function toAccelerator(e) {
+    const mods = [];
+    if (e.metaKey) mods.push('Command');
+    if (e.ctrlKey) mods.push('Control');
+    if (e.altKey) mods.push('Alt');
+    if (e.shiftKey) mods.push('Shift');
+    let key = e.key;
+    if (key === ' ') key = 'Space';
+    else if (key.length === 1) key = key.toUpperCase();
+    else return null;
+    if (mods.length === 0) return null;
+    if (['CONTROL', 'ALT', 'SHIFT', 'META'].includes(key)) return null;
+    return mods.join('+') + '+' + key;
+  }
+
+  window.addEventListener('keydown', async (e) => {
+    e.preventDefault();
+    if (e.key === 'Escape') { window.close(); return; }
+    if (busy || e.repeat) return;
+    const accel = toAccelerator(e);
+    if (!accel) return;
+    comboEl.textContent = accel.replace(/\+/g, ' + ');
+    statusEl.textContent = 'Trying…';
+    statusEl.className = '';
+    busy = true;
+    try {
+      const res = await window.flowtate.setHotkey(accel);
+      if (res.ok) {
+        statusEl.textContent = 'Saved: ' + res.hotkey;
+        statusEl.className = 'ok';
+        setTimeout(() => window.close(), 900);
+      } else {
+        statusEl.textContent = 'That combo is taken or invalid — try another.';
+        statusEl.className = 'err';
+      }
+    } catch (err) {
+      statusEl.textContent = 'Something went wrong — try another.';
+      statusEl.className = 'err';
+    }
+    busy = false;
+  });
+</script>
+</body>
+</html>

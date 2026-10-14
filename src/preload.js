@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('flowtate', {
   onRecordStop: (cb) => ipcRenderer.on('pill-record-stop', cb),
   sendAudioChunk: (buf) => ipcRenderer.send('audio-chunk', buf),
   recordingFlushed: () => ipcRenderer.invoke('recording-flushed'),
+  setHotkey: (accel) => ipcRenderer.invoke('set-hotkey', accel),
 });

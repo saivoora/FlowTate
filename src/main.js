@@ -13,6 +13,7 @@ const store = new Store({ defaults: { hotkey: 'CommandOrControl+Shift+Space' } }
 
 let pill = null;
 let tray = null;
+let hotkeyWin = null;
 let recording = false;
 let audioChunks = [];
 let engineReady = false;
@@ -103,7 +104,52 @@ function registerHotkey() {
   const hotkey = store.get('hotkey');
   const ok = globalShortcut.register(hotkey, toggleDictation);
   console.log(`[main] hotkey "${hotkey}": ${ok ? 'registered' : 'FAILED'}`);
+  return ok;
 }
+
+function buildTrayMenu() {
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Toggle dictation', click: toggleDictation },
+    { type: 'separator' },
+    { label: `Hotkey: ${store.get('hotkey')}`, enabled: false },
+    { label: 'Change hotkey…', click: openHotkeyWindow },
+    { type: 'separator' },
+    { label: 'Quit', click: () => app.quit() },
+  ]));
+}
+
+function openHotkeyWindow() {
+  if (hotkeyWin && !hotkeyWin.isDestroyed()) { hotkeyWin.focus(); return; }
+  hotkeyWin = new BrowserWindow({
+    width: 400, height: 220,
+    resizable: false, minimizable: false, maximizable: false,
+    alwaysOnTop: true, title: 'Change hotkey',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  hotkeyWin.setMenu(null);
+  hotkeyWin.loadFile(path.join(__dirname, 'hotkey.html'));
+  hotkeyWin.on('closed', () => { hotkeyWin = null; });
+}
+
+// Renderer captured a key combo; try it live. Restores the old hotkey on failure.
+ipcMain.handle('set-hotkey', (_event, accel) => {
+  const prev = store.get('hotkey');
+  globalShortcut.unregisterAll();
+  const ok = globalShortcut.register(accel, toggleDictation);
+  if (ok) {
+    store.set('hotkey', accel);
+    console.log(`[main] hotkey changed to "${accel}"`);
+  } else {
+    globalShortcut.register(prev, toggleDictation);
+    console.log(`[main] hotkey "${accel}" rejected, kept "${prev}"`);
+  }
+  buildTrayMenu();
+  return { ok, hotkey: store.get('hotkey') };
+});
 
 // First launch: download the speech model (~150MB) with pill progress.
 async function bootEngine() {
@@ -127,13 +173,7 @@ app.whenReady().then(() => {
   tray = new Tray(nativeImage.createEmpty());
   tray.setTitle('FlowTate');
   tray.setToolTip('FlowTate — voice dictation');
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Toggle dictation', click: toggleDictation },
-    { type: 'separator' },
-    { label: `Hotkey: ${store.get('hotkey')}`, enabled: false },
-    { type: 'separator' },
-    { label: 'Quit', click: () => app.quit() },
-  ]));
+  buildTrayMenu();
   registerHotkey();
   console.log('[main] ready');
   bootEngine(); // async — pill shows download progress
