@@ -14,19 +14,22 @@
       "category": "Utility",
       "target": [
         "AppImage"
-      ]
+      ],
+      "icon": "assets/icon.png"
     },
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
         "dmg"
-      ]
+      ],
+      "icon": "assets/icon.icns"
     },
     "productName": "FlowTate",
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "assets/icon.ico"
     }
   },
   "dependencies": {
@@ -34,7 +37,7 @@
     "@huggingface/transformers": "^4.3.1",
     "electron-store": "^8.2.0"
   },
-  "description": "Local-first voice dictation for macOS, Windows and Linux — no accounts, no API keys",
+  "description": "Local-first voice dictation for macOS, Windows and Linux \u2014 no accounts, no API keys",
   "devDependencies": {
     "electron": "^33.4.0",
     "electron-builder": "^25.1.8"
@@ -47,5 +50,5 @@
     "dist": "electron-builder",
     "start": "electron ."
   },
-  "version": "0.1.2"
+  "version": "0.1.3"
 }

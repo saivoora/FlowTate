@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" width="160" alt="FlowTate logo">
+</p>
+
 # FlowTate
 
 Local-first voice dictation for **macOS, Windows and Linux**. Press the hotkey,
